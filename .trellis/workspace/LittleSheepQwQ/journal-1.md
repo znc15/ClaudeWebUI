@@ -83,3 +83,36 @@ Implemented the Claude Code WebUI backend, frontend session/WebSocket integratio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 一键启动前后端
+
+**Date**: 2026-05-03
+**Task**: 一键启动前后端
+**Branch**: `main`
+
+### Summary
+
+新增根目录一键启动入口，前后端并行启动并自动打开前端页面，更新 README 和前端质量规范。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f525a1e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

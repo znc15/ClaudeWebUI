@@ -1,0 +1,3 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend layer overview and checklist for repo-local conventions"}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Keep any script or documentation changes aligned with the current repo layout and entrypoints"}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"If implementation adds a TypeScript helper for orchestration, keep it aligned with current typing patterns"}
