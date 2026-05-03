@@ -1,0 +1,10 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend spec index and checklist for this task."}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Placement rules for new frontend helper modules and component edits."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"App-shell component patterns to preserve while integrating backend state."}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Hook extraction threshold and effect cleanup patterns."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"App.tsx should remain the lifted state owner instead of adding a store."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Type organization guidance for local helper types and props."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend verification expectations and build constraints."}
+{"file":".trellis/spec/guides/index.md","reason":"Shared thinking guide index for cross-layer and reuse concerns."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Avoid duplicated transport/helpers while refactoring sample state."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Map backend REST/WS contracts cleanly into frontend state and rendering."}

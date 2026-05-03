@@ -1,0 +1,7 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend review checklist for changed files and verification."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Check that app-specific components still follow current patterns."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Verify lifted/shared state boundaries stay consistent."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Verify types remain local and explicit without broad escape hatches."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Run the repo's real frontend checks and validate claims."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Check for duplicated helper logic after refactor."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Verify REST/WS contracts are handled consistently across UI boundaries."}

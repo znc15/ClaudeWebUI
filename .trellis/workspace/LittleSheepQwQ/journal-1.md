@@ -49,3 +49,37 @@ Implemented the Claude Code WebUI backend, frontend session/WebSocket integratio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: 完成前端集成后端聊天功能
+
+**Date**: 2026-05-03
+**Task**: 完成前端集成后端聊天功能
+**Branch**: `main`
+
+### Summary
+
+前端与后端 REST/WebSocket API 集成完成，实现会话列表、创建、切换、WebSocket 连接管理、消息流式渲染和工具块展示。lint/typecheck/build 全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `21a58dc` | (see git log) |
+| `c6cf75c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
