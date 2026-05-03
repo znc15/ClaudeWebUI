@@ -19,6 +19,7 @@ function startProcess(name, cwd, args) {
   const child = spawn(NPM_COMMAND, args, {
     cwd,
     stdio: "inherit",
+    shell: process.platform === "win32",
   });
 
   child.on("error", (error) => {
