@@ -20,7 +20,22 @@ cd server
 npm install
 ```
 
-## 前端启动
+## 一键启动前后端
+
+项目根目录：
+
+```bash
+npm run dev:all
+```
+
+该命令会并行启动：
+
+- 根目录前端开发服务器
+- `server/` 后端开发服务器
+
+前端会沿用 Vite 的自动打开行为，在开发页可访问后自动拉起浏览器。
+
+## 单独启动前端
 
 项目根目录：
 
@@ -28,7 +43,13 @@ npm install
 npm run dev
 ```
 
-默认会启动 Vite 开发服务器。若需要局域网访问，可使用：
+也可以显式使用：
+
+```bash
+npm run dev:frontend
+```
+
+若需要局域网访问，可使用：
 
 ```bash
 npm run dev -- --host
@@ -94,10 +115,9 @@ npm start
 
 ## 本地开发顺序
 
-1. 在项目根目录启动前端：`npm run dev`
-2. 在 `server/` 目录启动后端：`npm run dev`
-3. 先访问后端健康检查：`http://127.0.0.1:4096/api/health`
-4. 再访问前端开发地址
+1. 推荐在项目根目录执行：`npm run dev:all`
+2. 如需确认后端状态，可访问：`http://127.0.0.1:4096/api/health`
+3. 如需单独调试，前端仍可在根目录执行 `npm run dev`，后端仍可在 `server/` 目录执行 `npm run dev`
 
 ## 手机或局域网访问
 

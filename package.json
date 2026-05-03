@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "npm run dev:frontend",
+    "dev:all": "node scripts/dev-launcher.mjs",
+    "dev:frontend": "vite",
     "lint": "eslint src vite.config.ts",
     "typecheck": "tsc --noEmit"
   },

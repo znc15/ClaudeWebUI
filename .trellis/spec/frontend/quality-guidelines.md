@@ -149,3 +149,53 @@
 - Parse `Task` or `子Agent` into a generic text block, or display every agent-like block as `Agent`.
 #### Correct
 - Categorize agent-like tools with `kind: "agent"` while preserving the exact Claude Code label in `toolName` for the chat UI.
+
+## Scenario: Root Dev Launcher
+
+### 1. Scope / Trigger
+- Trigger: the repo now has a root-level one-command launcher for local development, in addition to standalone frontend and backend dev commands.
+
+### 2. Signatures
+- Root launcher:
+  `npm run dev:all`
+- Frontend-only:
+  `npm run dev`
+  `npm run dev:frontend`
+- Backend-only:
+  `cd server && npm run dev`
+
+### 3. Contracts
+- `npm run dev:all` must start the frontend and backend together from the repo root.
+- The frontend process must be launched with Vite's open flag so the browser opens automatically when the dev server is ready.
+- The backend process must continue to use the existing `server/` dev script.
+- The launcher must stop the other child process if either side exits unexpectedly.
+- The launcher must surface failures explicitly instead of silently ignoring them.
+
+### 4. Validation & Error Matrix
+- Frontend exits early -> launcher kills backend and exits nonzero.
+- Backend exits early -> launcher kills frontend and exits nonzero.
+- User presses Ctrl+C -> both children terminate cleanly.
+- Launch script syntax breaks -> `node --check` fails before runtime.
+
+### 5. Good/Base/Bad Cases
+- Good: one root command opens the browser and keeps both dev servers running.
+- Base: frontend still starts alone with `npm run dev`.
+- Bad: silent background failure where one child dies and the other keeps running.
+
+### 6. Tests Required
+- Root verification must include:
+  `npm run lint`
+  `npm run typecheck`
+  `npm run build`
+- Backend verification must include:
+  `npm run lint`
+  `npm run typecheck`
+  `npm run build`
+- Launcher script verification must include:
+  `node --check scripts/dev-launcher.mjs`
+
+### 7. Wrong vs Correct
+#### Wrong
+- Hide child-process failures or require two manual terminal commands for the default workflow.
+#### Correct
+- Provide a root launcher that makes the common path one command while keeping single-side debug commands available.
