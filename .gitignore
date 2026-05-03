@@ -1,3 +1,9 @@
+node_modules/
+dist/
+server/dist/
+server/data/
+server/config.json
+coverage/
 AGENTS.md
 CLUADE.md
 SKILL.md
