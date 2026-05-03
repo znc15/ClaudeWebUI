@@ -1,0 +1,48 @@
+/* Orange breathing focus glow for primary input */
+@keyframes claude-focus-breath {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(204, 107, 63, 0.35),
+      0 0 18px 2px rgba(204, 107, 63, 0.18),
+      0 8px 30px rgba(204, 107, 63, 0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(204, 107, 63, 0.55),
+      0 0 28px 6px rgba(204, 107, 63, 0.28),
+      0 8px 36px rgba(204, 107, 63, 0.18);
+  }
+}
+
+.claude-input-glow:focus-within {
+  animation: claude-focus-breath 2.6s ease-in-out infinite;
+  border-color: rgba(204, 107, 63, 0.45) !important;
+}
+
+/* Subtle lift used by primary buttons */
+@keyframes claude-pulse-soft {
+  0%, 100% { box-shadow: 0 4px 14px rgba(201, 100, 66, 0.32), 0 1px 2px rgba(201, 100, 66, 0.18); }
+  50%      { box-shadow: 0 6px 22px rgba(201, 100, 66, 0.46), 0 1px 2px rgba(201, 100, 66, 0.20); }
+}
+.claude-send-pulse:hover { animation: claude-pulse-soft 1.8s ease-in-out infinite; }
+
+/* Generic interactive button polish */
+.claude-btn { transition: transform .15s ease, background-color .2s ease, color .2s ease, box-shadow .2s ease; }
+.claude-btn:hover { transform: translateY(-1px); }
+.claude-btn:active { transform: translateY(0) scale(.96); }
+
+/* Slim scrollbars */
+.claude-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.claude-scroll::-webkit-scrollbar-thumb {
+  background: rgba(155, 145, 120, 0.28);
+  border-radius: 8px;
+}
+.claude-scroll::-webkit-scrollbar-thumb:hover { background: rgba(155, 145, 120, 0.45); }
+.claude-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Soft fade-in for dropdowns */
+@keyframes claude-pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.claude-pop { animation: claude-pop-in .16s ease-out; transform-origin: bottom left; }

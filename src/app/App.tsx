@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Moon, RefreshCw, Sun } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  PanelLeft,
+} from "lucide-react";
 import { Toaster, toast } from "sonner";
 
 import { ChatView } from "./components/chat-view";
 import { LeftSidebar } from "./components/left-sidebar";
+import { RightSidebar } from "./components/right-sidebar";
+import { SettingsDialog } from "./components/settings-dialog";
 import {
   connectSessionSocket,
   createSession,
@@ -24,6 +28,7 @@ import {
 import type {
   ConnectionSettings,
   HealthResponse,
+  ServerEntry,
   ServerEvent,
   SessionDetail,
   SessionSummary,
@@ -32,12 +37,24 @@ import type {
 
 const ACTIVE_SESSION_KEY = "claude-webui:active-session-id";
 const SETTINGS_KEY = "claude-webui:settings";
+const SERVERS_KEY = "claude-webui:servers";
 const THEME_KEY = "claude-webui:theme";
 const IDLE_SOCKET_STATUS = createSocketStatus("idle", "未连接到会话");
 
+const MIN_SIDEBAR = 180;
+const MAX_SIDEBAR = 520;
+const MIN_RIGHT = 180;
+const MAX_RIGHT = 560;
+
 export default function App() {
-  const [isDark, setIsDark] = useState(readStoredTheme);
+  const [appearance, setAppearance] = useState<"system" | "light" | "dark">("system");
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+  const isDark = appearance === "dark" || (appearance === "system" && systemDark);
+
   const [settings, setSettings] = useState(readStoredSettings);
+  const [servers, setServers] = useState<ServerEntry[]>(readStoredServers);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -52,14 +69,50 @@ export default function App() {
   const activeSessionIdRef = useRef<string | null>(null);
   const activeSessionRef = useRef<SessionDetail | null>(null);
 
+  // Layout state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [rightWidth, setRightWidth] = useState(280);
+  const [wideMode, setWideMode] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState<"left" | "right" | null>(null);
+
+  const leftDragStartX = useRef(0);
+  const leftDragStartW = useRef(0);
+  const rightDragStartX = useRef(0);
+  const rightDragStartW = useRef(0);
+
+  // Theme effect
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
-    window.localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
-  }, [isDark]);
+    window.localStorage.setItem(THEME_KEY, appearance);
+  }, [isDark, appearance]);
 
+  // Settings persistence
   useEffect(() => {
     window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  // Servers persistence
+  useEffect(() => {
+    window.localStorage.setItem(SERVERS_KEY, JSON.stringify(servers));
+  }, [servers]);
+
+  // Sync active server with settings
+  useEffect(() => {
+    const activeServer = servers.find((s) => s.active);
+    if (activeServer && activeServer.url !== settings.baseUrl) {
+      setSettings((current) => ({ ...current, baseUrl: activeServer.url }));
+    }
+  }, [servers]);
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -67,7 +120,6 @@ export default function App() {
       window.localStorage.removeItem(ACTIVE_SESSION_KEY);
       return;
     }
-
     window.localStorage.setItem(ACTIVE_SESSION_KEY, activeSessionId);
   }, [activeSessionId]);
 
@@ -86,14 +138,13 @@ export default function App() {
       disconnectSocket(IDLE_SOCKET_STATUS);
       return;
     }
-
     void openSession(activeSessionId);
   }, [activeSessionId, settings.baseUrl, settings.password]);
 
   const socketReady = socketStatus.phase === "connected";
   const connectionLabel = useMemo(
     () => buildConnectionLabel(health, error),
-    [error, health],
+    [error, health]
   );
 
   async function refreshWorkspace(): Promise<void> {
@@ -109,7 +160,7 @@ export default function App() {
         activeSessionIdRef.current ?? readStoredActiveSessionId();
       const nextActiveSessionId = pickActiveSessionId(
         preferredSessionId,
-        nextSessions,
+        nextSessions
       );
 
       setHealth(nextHealth);
@@ -117,9 +168,9 @@ export default function App() {
       setSettings((current) =>
         current.defaultCwd
           ? current
-          : { ...current, defaultCwd: nextHealth.defaultCwd },
+          : { ...current, defaultCwd: nextHealth.defaultCwd }
       );
-      setSelectedSession(nextActiveSessionId);
+      setActiveSessionId(nextActiveSessionId);
 
       if (!nextActiveSessionId) {
         setActiveSession(null);
@@ -134,7 +185,7 @@ export default function App() {
       const message = toErrorMessage(caughtError);
       setError(message);
       setSessions([]);
-      setSelectedSession(null);
+      setActiveSessionId(null);
       setActiveSession(null);
       disconnectSocket(createSocketStatus("disconnected", message));
     } finally {
@@ -184,7 +235,7 @@ export default function App() {
         cwd: settings.defaultCwd.trim() || health?.defaultCwd,
       });
       setSessions((current) => mergeSessionSummary(current, session));
-      setSelectedSession(session.id);
+      setActiveSessionId(session.id);
       toast.success("已创建新会话");
     } catch (caughtError) {
       const message = toErrorMessage(caughtError);
@@ -193,16 +244,6 @@ export default function App() {
     } finally {
       setCreating(false);
     }
-  }
-
-  function handleSelectSession(sessionId: string): void {
-    if (sessionId === activeSessionIdRef.current) {
-      void openSession(sessionId);
-      return;
-    }
-
-    setDraft("");
-    setSelectedSession(sessionId);
   }
 
   function handleSend(): void {
@@ -233,7 +274,7 @@ export default function App() {
       onClose: (event) => handleSocketClose(socket, sessionId, attempt, event),
       onError: () =>
         setSocketStatus(
-          createSocketStatus("error", "连接出错，等待 WebSocket 关闭事件"),
+          createSocketStatus("error", "连接出错，等待 WebSocket 关闭事件")
         ),
       onEvent: (event) => handleSocketEvent(socket, event),
       onOpen: () => handleSocketOpen(socket),
@@ -245,7 +286,6 @@ export default function App() {
     if (socketRef.current !== socket) {
       return;
     }
-
     setSocketStatus(createSocketStatus("connected", "WebSocket 已连接"));
     setError(null);
   }
@@ -281,7 +321,7 @@ export default function App() {
     socket: WebSocket,
     sessionId: string,
     attempt: number,
-    event: CloseEvent,
+    event: CloseEvent
   ): void {
     if (socketRef.current === socket) {
       socketRef.current = null;
@@ -310,8 +350,8 @@ export default function App() {
       createSocketStatus(
         "reconnecting",
         `连接已断开，${SOCKET_RETRY_DELAY_MS / 1000} 秒后重试（${nextAttempt}/${SOCKET_MAX_ATTEMPTS}）`,
-        nextAttempt,
-      ),
+        nextAttempt
+      )
     );
     reconnectTimerRef.current = window.setTimeout(() => {
       if (activeSessionIdRef.current === sessionId) {
@@ -336,106 +376,203 @@ export default function App() {
     if (reconnectTimerRef.current === null) {
       return;
     }
-
     window.clearTimeout(reconnectTimerRef.current);
     reconnectTimerRef.current = null;
   }
 
-  function setSelectedSession(sessionId: string | null): void {
-    activeSessionIdRef.current = sessionId;
-    setActiveSessionId(sessionId);
+  // Resize handlers
+  const onMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isDragging === "left") {
+        const delta = e.clientX - leftDragStartX.current;
+        const newW = Math.max(MIN_SIDEBAR, Math.min(MAX_SIDEBAR, leftDragStartW.current + delta));
+        setSidebarWidth(newW);
+      } else if (isDragging === "right") {
+        const delta = rightDragStartX.current - e.clientX;
+        const newW = Math.max(MIN_RIGHT, Math.min(MAX_RIGHT, rightDragStartW.current + delta));
+        setRightWidth(newW);
+      }
+    },
+    [isDragging]
+  );
+
+  const onMouseUp = useCallback(() => setIsDragging(null), []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isDragging, onMouseMove, onMouseUp]);
+
+  const startLeftResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    leftDragStartX.current = e.clientX;
+    leftDragStartW.current = sidebarWidth;
+    setIsDragging("left");
+  };
+
+  const startRightResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    rightDragStartX.current = e.clientX;
+    rightDragStartW.current = rightWidth;
+    setIsDragging("right");
+  };
+
+  // Server management
+  function setActiveServer(id: string) {
+    setServers((s) => s.map((x) => ({ ...x, active: x.id === id })));
+    toast.success("已切换活跃服务器");
+  }
+
+  function addServer(name: string, url: string) {
+    const id = String(Date.now());
+    setServers((s) => [...s, { id, name, url, active: false }]);
+    toast.success("已添加服务器");
+  }
+
+  function updateServer(id: string, name: string, url: string) {
+    setServers((s) => s.map((x) => (x.id === id ? { ...x, name, url } : x)));
+    toast.success("已更新服务器");
+  }
+
+  function removeServer(id: string) {
+    setServers((s) => s.filter((x) => x.id !== id));
+    toast("已删除服务器");
   }
 
   return (
     <div
-      className={`min-h-screen ${isDark ? "dark bg-[#161616]" : "bg-[#f3efe6]"}`}
+      className={`size-full flex relative overflow-hidden ${isDark ? "dark" : ""}`}
+      style={{
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        userSelect: isDragging ? "none" : undefined,
+        cursor: isDragging ? "col-resize" : undefined,
+        background: isDark
+          ? "radial-gradient(circle at 0% 0%, #1e1c18 0%, #1a1917 40%, #1c1b16 100%)"
+          : "radial-gradient(circle at 0% 0%, #f7f3e9 0%, #f5f4ef 40%, #f3efe4 100%)",
+      }}
     >
+      {/* Ambient orbs */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full opacity-50"
+        style={{
+          background: isDark
+            ? "radial-gradient(circle, #3d2a1e 0%, rgba(61,42,30,0) 70%)"
+            : "radial-gradient(circle, #f3c6a8 0%, rgba(243,198,168,0) 70%)",
+          filter: "blur(80px)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-1/3 -right-40 w-[600px] h-[600px] rounded-full opacity-40"
+        style={{
+          background: isDark
+            ? "radial-gradient(circle, #1e1a2e 0%, rgba(30,26,46,0) 70%)"
+            : "radial-gradient(circle, #d9c8e8 0%, rgba(217,200,232,0) 70%)",
+          filter: "blur(90px)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-48 left-1/3 w-[640px] h-[640px] rounded-full opacity-35"
+        style={{
+          background: isDark
+            ? "radial-gradient(circle, #162018 0%, rgba(22,32,24,0) 70%)"
+            : "radial-gradient(circle, #cfe0d4 0%, rgba(207,224,212,0) 70%)",
+          filter: "blur(100px)",
+        }}
+      />
+
       <Toaster position="bottom-right" />
-      <div className="flex min-h-screen flex-col md:flex-row">
+
+      {isDragging && <div className="fixed inset-0 z-[999] cursor-col-resize" />}
+
+      {/* ── Left Sidebar ── */}
+      {sidebarOpen && (
         <LeftSidebar
-          activeSessionId={activeSessionId}
-          busy={busy}
-          connectionLabel={connectionLabel}
-          creating={creating}
-          defaultCwd={settings.defaultCwd}
-          error={error}
-          health={health}
+          open={sidebarOpen}
+          width={sidebarWidth}
+          onToggle={() => setSidebarOpen(false)}
+          onResizeStart={startLeftResize}
+          isDragging={isDragging === "left"}
           isDark={isDark}
-          onBaseUrlChange={(baseUrl) =>
-            setSettings((current) => ({ ...current, baseUrl }))
-          }
-          onCreateSession={handleCreateSession}
-          onDefaultCwdChange={(defaultCwd) =>
-            setSettings((current) => ({ ...current, defaultCwd }))
-          }
-          onPasswordChange={(password) =>
-            setSettings((current) => ({ ...current, password }))
-          }
-          onRefresh={() => void refreshWorkspace()}
-          onSelectSession={handleSelectSession}
-          password={settings.password}
+          activeSessionId={activeSessionId}
+          setActiveSessionId={setActiveSessionId}
+          appearance={appearance}
+          setAppearance={setAppearance}
+          wideMode={wideMode}
+          setWideMode={setWideMode}
+          setSettingsOpen={setSettingsOpen}
           sessions={sessions}
+          onRefresh={() => void refreshWorkspace()}
+          onCreateSession={handleCreateSession}
+          creating={creating}
+          busy={busy}
         />
+      )}
 
-        <main className="flex min-h-[70vh] flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-black/8 px-4 py-3 dark:border-white/10 md:px-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-[#8a806f] dark:text-[#918676]">
-                Claude Code Remote
-              </p>
-              <h1 className="font-serif text-2xl text-[#332d23] dark:text-[#ede6da]">
-                Claude WebUI
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="rounded-full border border-black/10 p-2 text-[#6d6251] transition hover:bg-black/5 dark:border-white/10 dark:text-[#d9d0c4] dark:hover:bg-white/6"
-                onClick={() => void refreshWorkspace()}
-                title="刷新会话"
-              >
-                <RefreshCw className="size-4" />
-              </button>
-              <button
-                className="rounded-full border border-black/10 p-2 text-[#6d6251] transition hover:bg-black/5 dark:border-white/10 dark:text-[#d9d0c4] dark:hover:bg-white/6"
-                onClick={() => setIsDark((current) => !current)}
-                title="切换主题"
-              >
-                {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-              </button>
-            </div>
-          </header>
+      {/* ── Main ── */}
+      <main className="flex-1 flex flex-col relative min-w-0 z-[1]">
+        {!sidebarOpen && (
+          <button
+            onClick={() => {
+              setSidebarOpen(true);
+              toast.success("已展开侧边栏");
+            }}
+            className="absolute top-4 left-4 p-1.5 rounded-md hover:bg-[#ebe7d9] dark:hover:bg-white/8 transition active:scale-95 z-10 bg-transparent"
+          >
+            <PanelLeft className="w-4 h-4 text-[#6b6553] dark:text-[#9a9485]" />
+          </button>
+        )}
 
-          <ChatView
-            connectionLabel={connectionLabel}
-            draft={draft}
-            isDark={isDark}
-            onDraftChange={setDraft}
-            onSend={handleSend}
-            session={activeSession}
-            socketReady={socketReady}
-            socketStatus={socketStatus}
-          />
-        </main>
-      </div>
+        <ChatView
+          connectionLabel={connectionLabel}
+          draft={draft}
+          isDark={isDark}
+          onDraftChange={setDraft}
+          onSend={handleSend}
+          session={activeSession}
+          socketReady={socketReady}
+          socketStatus={socketStatus}
+          wideMode={wideMode}
+          onToggleRight={() => setRightOpen((o) => !o)}
+          rightOpen={rightOpen}
+        />
+      </main>
+
+      {/* Right sidebar */}
+      {activeSession && (
+        <RightSidebar
+          open={rightOpen}
+          width={rightWidth}
+          onToggle={() => setRightOpen((o) => !o)}
+          onResizeStart={startRightResize}
+          isDragging={isDragging === "right"}
+          isDark={isDark}
+        />
+      )}
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        isDark={isDark}
+        servers={servers}
+        onSetActiveServer={setActiveServer}
+        onAddServer={addServer}
+        onUpdateServer={updateServer}
+        onRemoveServer={removeServer}
+      />
     </div>
   );
 }
 
-function readStoredTheme(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return window.localStorage.getItem(THEME_KEY) === "dark";
-}
-
-function readStoredActiveSessionId(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(ACTIVE_SESSION_KEY);
-}
+// ── Helper functions ───────────────────────────────────────────────────────────
 
 function readStoredSettings(): ConnectionSettings {
   if (typeof window === "undefined") {
@@ -454,18 +591,40 @@ function readStoredSettings(): ConnectionSettings {
   }
 }
 
+function readStoredServers(): ServerEntry[] {
+  if (typeof window === "undefined") {
+    return [{ id: "1", name: "Local", url: "http://127.0.0.1:4096", active: true }];
+  }
+
+  const raw = window.localStorage.getItem(SERVERS_KEY);
+  if (!raw) {
+    return [{ id: "1", name: "Local", url: "http://127.0.0.1:4096", active: true }];
+  }
+
+  try {
+    return JSON.parse(raw) as ServerEntry[];
+  } catch {
+    return [{ id: "1", name: "Local", url: "http://127.0.0.1:4096", active: true }];
+  }
+}
+
+function readStoredActiveSessionId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage.getItem(ACTIVE_SESSION_KEY);
+}
+
 function buildConnectionLabel(
   health: HealthResponse | null,
-  error: string | null,
+  error: string | null
 ): string {
   if (error) {
     return `连接失败 · ${error}`;
   }
-
   if (!health) {
     return "尚未连接到后端";
   }
-
   return `后端在线 · ${health.command}`;
 }
 
@@ -473,11 +632,10 @@ function buildSocketProgress(attempt: number): SocketStatus {
   if (attempt === 0) {
     return createSocketStatus("connecting", "正在连接会话");
   }
-
   return createSocketStatus(
     "reconnecting",
     `正在重新连接（${attempt}/${SOCKET_MAX_ATTEMPTS}）`,
-    attempt,
+    attempt
   );
 }
 
@@ -485,6 +643,5 @@ function toErrorMessage(caughtError: unknown): string {
   if (caughtError instanceof Error) {
     return caughtError.message;
   }
-
   return "请求失败";
 }

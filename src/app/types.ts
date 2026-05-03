@@ -60,6 +60,13 @@ export interface ConnectionSettings {
   defaultCwd: string;
 }
 
+export interface ServerEntry {
+  id: string;
+  name: string;
+  url: string;
+  active: boolean;
+}
+
 export type SocketPhase =
   | "idle"
   | "connecting"
