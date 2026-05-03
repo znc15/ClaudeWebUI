@@ -116,3 +116,36 @@ Implemented the Claude Code WebUI backend, frontend session/WebSocket integratio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: UI重构：三栏布局与设置弹窗服务器管理
+
+**Date**: 2026-05-04
+**Task**: UI重构：三栏布局与设置弹窗服务器管理
+**Branch**: `main`
+
+### Summary
+
+重构UI以匹配example设计：实现三栏布局（左sidebar+主区域+右sidebar），支持拖拽调整宽度和折叠；将后端地址设置移至设置弹窗，支持服务器管理（添加/删除/编辑/切换）；增强ChatView添加wideMode和模型选择器。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `434162a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
